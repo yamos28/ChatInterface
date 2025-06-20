@@ -1,10 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "env": {
-    "VITE_WEBHOOK_URL": "https://locallead.app.n8n.cloud/webhook-test/8d78514c-f2bc-43da-8dd8-f6547d4ed2c9",
-    "VITE_CHAT_TITLE": "SiteBuilder",
-    "VITE_DEBUG": "false"
-  }
+  "framework": "vite"
 } 
