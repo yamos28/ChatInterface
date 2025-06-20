@@ -21,9 +21,10 @@ export interface WebhookResponse {
 }
 
 export interface ChatError {
-  type: 'network' | 'timeout' | 'rate_limit' | 'server';
+  type: 'network' | 'timeout' | 'rate_limit' | 'server' | 'unknown';
   message: string;
   retryable: boolean;
+  code?: number;
 }
 
 export interface ChatState {
@@ -39,9 +40,26 @@ export interface EmojiPickerData {
   name: string;
 }
 
+export interface Theme {
+  primaryColor: string;
+  backgroundColor: string;
+  textColor: string;
+  userMessageColor: string;
+  botMessageColor: string;
+}
+
 export interface ChatConfig {
+  title: string;
+  subtitle?: string;
   webhookUrl: string;
   webhookToken?: string;
-  title: string;
-  debug: boolean;
+  showQuickReplies?: boolean;
+  theme?: Theme;
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  debug?: boolean;
+}
+
+export interface EmbedOptions extends ChatConfig {
+  containerId?: string;
+  autoOpen?: boolean;
 } 

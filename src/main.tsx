@@ -1,28 +1,18 @@
-// Main entry point for SiteBuilder Chat
-// Created: React app initialization and rendering to embeddable container
+// Main entry point for SiteBuilder Chat - Updated for full-page interface
+// Recent changes: Changed from widget embed to full-page React app
 
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import App from './App';
 
-// Find or create the container for the chat widget
-const containerId = 'sitebuilder-chat-root';
-let container = document.getElementById(containerId);
-
-if (!container) {
-  // Create container if it doesn't exist (for standalone mode)
-  container = document.createElement('div');
-  container.id = containerId;
-  document.body.appendChild(container);
+// Mount the full-page chat application
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(<App />);
+} else {
+  console.error('Root container not found');
 }
-
-// Render the chat widget
-ReactDOM.createRoot(container).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
 
 // Export for external embedding
 declare global {
@@ -58,10 +48,7 @@ window.SiteBuilderChat = {
     }
     
     // Re-render with new config
-    ReactDOM.createRoot(container!).render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>,
-    );
+    const root = createRoot(container!);
+    root.render(<App />);
   }
 }; 
