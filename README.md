@@ -1,284 +1,194 @@
 # SiteBuilder Chat
 
-A production-ready embeddable chat widget for n8n Cloud workflows. Built with React, TypeScript, and TailwindCSS.
+A production-ready, embeddable AI chat widget for website building assistance, powered by n8n Cloud workflows and Supabase for persistent chat history.
 
-## Features
+## ✨ Features
 
-- 🚀 **Embeddable**: Simple `<script>` tag integration
-- 💬 **Modern UI**: Responsive design with Relevance-AI styling
-- 🔒 **Secure**: Built-in XSS protection and rate limiting
-- ♿ **Accessible**: ARIA labels and screen reader support
-- 🌙 **Dark Mode**: Automatic dark mode support
-- 📱 **Mobile**: Responsive design for all devices
-- ⚡ **Fast**: Optimized bundle size (<150KB gzipped)
+### Core Features
+- 🤖 **AI-Powered Conversations** - Connected to n8n Cloud workflows
+- 💬 **Full-Page Chat Interface** - Modern chat application with sidebar navigation
+- 📱 **Mobile Responsive** - Works seamlessly on all devices
+- 🎨 **Modern UI/UX** - Clean, accessible design with dark mode support
+- ⚡ **Fast & Lightweight** - 72.46 kB gzipped bundle size
 
-## Quick Start
+### Chat Management
+- 💾 **Persistent Chat History** - Conversations saved with Supabase
+- 🔄 **Cross-Device Synchronization** - Access chats from any device
+- 📁 **Conversation Organization** - Create, switch, and delete conversations
+- 🔍 **Smart Search** - Find conversations quickly
+- 💡 **Auto-Generated Titles** - Conversations titled from first user message
 
-### 1. Install Dependencies
+### Technical Features
+- ⚙️ **Environment Configuration** - Easy setup with environment variables
+- 🛡️ **Error Handling** - Robust error handling with retry capabilities
+- 🚀 **Rate Limiting** - Prevents API abuse with debounced requests
+- 🔒 **Secure** - Row-level security with Supabase
+- 📊 **Real-time Sync Status** - Visual indicators for sync status
 
+## 🚀 Quick Start
+
+### 1. Clone the Repository
 ```bash
+git clone https://github.com/yamos28/ChatInterface.git
+cd ChatInterface
 npm install
 ```
 
 ### 2. Configure Environment
-
-Copy `.env.sample` to `.env` and configure your settings:
-
-```bash
-cp .env.sample .env
-```
-
-Required environment variables:
+Create a `.env.local` file with your configuration:
 
 ```env
-# Required: Your n8n Cloud webhook URL
-VITE_WEBHOOK_URL=https://hook.n8n.cloud/webhook/your-webhook-path
+# n8n Webhook Configuration
+VITE_WEBHOOK_URL=https://your-n8n-instance.app.n8n.cloud/webhook-test/your-webhook-id
+VITE_WEBHOOK_TOKEN=your-optional-webhook-token
 
-# Optional: Bearer token for authentication
-VITE_WEBHOOK_TOKEN=your-bearer-token
+# Supabase Configuration (optional - for persistent history)
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anonymous-key
 
-# Optional: Chat widget title (default: "SiteBuilder")
-VITE_CHAT_TITLE=SiteBuilder
-
-# Optional: Enable debug mode (default: false)
+# Chat Configuration
+VITE_CHAT_TITLE=SiteBuilder Chat
 VITE_DEBUG=false
 ```
 
-### 3. Run Development Server
+### 3. Set Up Supabase (Optional)
+For persistent chat history and cross-device sync:
 
+1. Create a [Supabase](https://supabase.com) project
+2. Run the SQL from `supabase/schema.sql` in your Supabase SQL Editor
+3. Add your Supabase credentials to `.env.local`
+
+See `SUPABASE_SETUP.md` for detailed instructions.
+
+### 4. Start Development
 ```bash
 npm run dev
 ```
 
-### 4. Build for Production
+The chat interface will be available at `http://localhost:3000`
 
+## 🗄️ Database Schema
+
+When Supabase is configured, the following tables are created:
+
+### `conversations`
+- Stores chat conversation metadata
+- Includes user_id, title, last_message, timestamps
+- Row-level security enabled
+
+### `messages`
+- Stores individual chat messages
+- Linked to conversations with foreign key
+- Supports markdown content and user/bot distinction
+
+## 🌐 Deployment
+
+### Vercel (Recommended)
+1. Push your code to GitHub
+2. Import your repository in Vercel
+3. Add environment variables in Vercel dashboard:
+   - `VITE_WEBHOOK_URL`
+   - `VITE_SUPABASE_URL` (if using Supabase)
+   - `VITE_SUPABASE_ANON_KEY` (if using Supabase)
+
+### Other Platforms
+The app builds to static files and can be deployed to any static hosting service:
 ```bash
 npm run build
+# Deploy the 'dist' folder
 ```
 
-## n8n Cloud Setup
+## 🔧 Configuration
 
-### 1. Create Webhook Node
+### Environment Variables
 
-1. In your n8n workflow, add a **Webhook** node
-2. Set the HTTP Method to `POST`
-3. Set the Path to something like `/sitebuilder-chat`
-4. The webhook URL will be: `https://hook.n8n.cloud/webhook/sitebuilder-chat`
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_WEBHOOK_URL` | ✅ | Your n8n webhook URL |
+| `VITE_WEBHOOK_TOKEN` | ❌ | Optional webhook authentication token |
+| `VITE_SUPABASE_URL` | ❌ | Supabase project URL (for persistence) |
+| `VITE_SUPABASE_ANON_KEY` | ❌ | Supabase anonymous key (for persistence) |
+| `VITE_CHAT_TITLE` | ❌ | Custom chat title (default: "SiteBuilder Chat") |
+| `VITE_DEBUG` | ❌ | Enable debug mode (default: false) |
 
-### 2. Configure Webhook Response
+### Fallback Mode
+If Supabase is not configured, the app automatically falls back to localStorage for basic chat history within the same browser session.
 
-Your n8n workflow should return a JSON response in this format:
+## 🛠️ Development
 
-```json
-{
-  "reply": "Your bot response here (markdown supported)",
-  "follow_up": ["Question 1?", "Question 2?"]
-}
-```
-
-- `reply`: The bot's response (supports markdown)
-- `follow_up`: Optional array of quick-reply buttons
-
-### 3. Domain Whitelisting
-
-In n8n Cloud settings:
-1. Go to your webhook settings
-2. Add your domain to the CORS whitelist
-3. Include both `http://localhost:3000` (for development) and your production domain
-
-## Embedding the Widget
-
-### Method 1: Direct Script Tag
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Your Website</title>
-</head>
-<body>
-    <!-- Your content -->
-    
-    <!-- SiteBuilder Chat Widget -->
-    <div id="sitebuilder-chat-root"></div>
-    <script src="./dist/sitebuilder-chat.js"></script>
-    <script>
-        SiteBuilderChat.init({
-            webhookUrl: 'https://hook.n8n.cloud/webhook/your-webhook-path',
-            title: 'SiteBuilder',
-            debug: false
-        });
-    </script>
-</body>
-</html>
-```
-
-### Method 2: Dynamic Loading
-
-```html
-<script>
-(function() {
-    // Create container
-    const container = document.createElement('div');
-    container.id = 'sitebuilder-chat-root';
-    document.body.appendChild(container);
-    
-    // Load script
-    const script = document.createElement('script');
-    script.src = 'https://your-domain.com/sitebuilder-chat.js';
-    script.onload = function() {
-        SiteBuilderChat.init({
-            webhookUrl: 'https://hook.n8n.cloud/webhook/your-webhook-path',
-            webhookToken: 'optional-bearer-token',
-            title: 'Your Assistant',
-            debug: false
-        });
-    };
-    document.head.appendChild(script);
-})();
-</script>
-```
-
-## API Reference
-
-### Chat Widget Configuration
-
-```typescript
-interface ChatConfig {
-  webhookUrl: string;    // Required: n8n webhook URL
-  webhookToken?: string; // Optional: Bearer token
-  title: string;         // Chat widget title
-  debug: boolean;        // Enable debug logging
-}
-```
-
-### Webhook Request Format
-
-Your n8n webhook will receive:
-
-```json
-{
-  "session_id": "uuid-v4-string",
-  "message": "User's message",
-  "timestamp": "2024-01-01T12:00:00.000Z"
-}
-```
-
-### Webhook Response Format
-
-Your n8n workflow should return:
-
-```json
-{
-  "reply": "Bot response (markdown supported)",
-  "follow_up": ["Optional", "Quick replies"]
-}
-```
-
-## Features in Detail
-
-### Rate Limiting
-- Prevents spam with 500ms debounce
-- Handles 429 responses with exponential backoff
-- Maximum 3 retry attempts
-
-### Error Handling
-- Network timeouts (30 seconds)
-- Retry functionality for failed requests
-- User-friendly error messages
-- Graceful fallbacks
-
-### Accessibility
-- ARIA labels on all interactive elements
-- Screen reader announcements for new messages
-- Keyboard navigation support
-- High contrast mode compatibility
-
-### Security
-- XSS protection with DOMPurify
-- CORS support
-- No inline scripts in production
-- Environment variable validation
-
-## Development
-
-### Available Scripts
-
-```bash
-# Development server
-npm run dev
-
-# Production build
-npm run build
-
-# Preview production build
-npm run preview
-
-# Type checking
-npm run lint
-```
+### Tech Stack
+- **Frontend**: React 18 + TypeScript + Vite
+- **Styling**: TailwindCSS
+- **Database**: Supabase (PostgreSQL)
+- **Deployment**: Vercel
+- **Package Manager**: npm
 
 ### Project Structure
-
 ```
 src/
 ├── components/         # React components
-│   ├── ChatWidget.tsx     # Main chat interface
-│   ├── MessageBubble.tsx  # Individual messages
-│   ├── ChatInput.tsx      # Message input
-│   ├── TypingIndicator.tsx # Typing animation
-│   ├── QuickReplyButtons.tsx # Follow-up buttons
-│   └── ErrorToast.tsx     # Error handling
-├── types/             # TypeScript definitions
+│   ├── FullPageChat.tsx   # Main chat interface
+│   ├── MessageBubble.tsx  # Individual message display
+│   └── ...
 ├── utils/             # Utility functions
-│   ├── api.ts            # Webhook communication
-│   ├── session.ts        # Session management
-│   ├── markdown.ts       # Markdown rendering
-│   └── debounce.ts       # Rate limiting
-├── App.tsx            # Main app component
-├── main.tsx           # Entry point
-└── index.css          # Styles
+│   ├── api.ts         # n8n webhook client
+│   ├── supabase.ts    # Database operations
+│   └── ...
+├── types/             # TypeScript definitions
+└── ...
 ```
 
-### Customization
-
-To customize the appearance, modify:
-
-1. **Colors**: Update `tailwind.config.js` color scheme
-2. **Layout**: Modify CSS classes in `src/index.css`
-3. **Branding**: Change title and avatar in `ChatWidget.tsx`
-
-## Troubleshooting
-
-### Common Issues
-
-**Error: "Webhook URL not configured"**
-- Ensure `VITE_WEBHOOK_URL` is set in your `.env` file
-- Verify the URL is accessible and returns JSON
-
-**Error: "CORS blocked"**
-- Add your domain to n8n Cloud CORS whitelist
-- Include both development and production URLs
-
-**Error: "Network error"**
-- Check your internet connection
-- Verify the webhook URL is correct
-- Test the webhook directly with curl
-
-### Debug Mode
-
-Enable debug mode to see detailed logging:
-
-```env
-VITE_DEBUG=true
+### Build Commands
+```bash
+npm run dev        # Start development server
+npm run build      # Build for production
+npm run preview    # Preview production build
+npm run test       # Run tests (if configured)
 ```
 
-This will log all API requests and responses to the browser console.
+## 📚 API Integration
 
-## License
+### n8n Webhook Format
+The chat sends POST requests to your n8n webhook with:
 
-MIT License - see LICENSE file for details.
+```json
+{
+  "session_id": "uuid-v4",
+  "message": "user message",
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
 
-## Support
+Expected response format:
+```json
+{
+  "reply": "AI response message",
+  "follow_up": ["Optional", "follow-up", "questions"]
+}
+```
 
-For issues and feature requests, please create an issue in the GitHub repository. 
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- Check `SUPABASE_SETUP.md` for database setup
+- Review environment variable configuration
+- Ensure your n8n webhook accepts POST requests
+- Test with the included `test-webhook.js` mock server
+
+## 🔗 Links
+
+- [Live Demo](https://your-vercel-deployment-url.vercel.app)
+- [GitHub Repository](https://github.com/yamos28/ChatInterface)
+- [n8n Documentation](https://docs.n8n.io/)
+- [Supabase Documentation](https://supabase.com/docs) 

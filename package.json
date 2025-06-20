@@ -13,17 +13,18 @@
     "size-check": "npm run build && echo \"Bundle size check:\" && powershell \"Get-ChildItem -Path 'dist' -Filter '*.js' | ForEach-Object { Write-Host $_.Name ': ' $_.Length ' bytes' }\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.50.0",
+    "dompurify": "^3.0.5",
+    "marked": "^11.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "uuid": "^9.0.1",
-    "marked": "^11.1.1",
-    "dompurify": "^3.0.5"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@types/uuid": "^9.0.7",
-    "@types/dompurify": "^3.0.5",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
@@ -36,7 +37,13 @@
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
   },
-  "keywords": ["chat", "widget", "n8n", "webhook", "embeddable"],
+  "keywords": [
+    "chat",
+    "widget",
+    "n8n",
+    "webhook",
+    "embeddable"
+  ],
   "author": "SiteBuilder Chat",
   "license": "MIT"
-} 
+}

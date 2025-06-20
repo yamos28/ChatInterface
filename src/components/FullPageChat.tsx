@@ -1,11 +1,12 @@
 // Full-page chat interface for SiteBuilder Chat
-// Created: Complete chat application with history, sidebar navigation, and modern UI
+// Recent changes: Added Supabase integration for persistent history and cross-device sync
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, ChatError, ChatConfig } from '../types';
 import ApiClient from '../utils/api';
 import sessionManager from '../utils/session';
+import supabaseService from '../utils/supabase';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 import QuickReplyButtons from './QuickReplyButtons';
@@ -33,6 +34,8 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({ config }) => {
   const [followUps, setFollowUps] = useState<string[]>([]);
   const [lastMessageTime, setLastMessageTime] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('offline');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const apiClientRef = useRef<ApiClient | null>(null);
@@ -42,27 +45,84 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({ config }) => {
     apiClientRef.current = new ApiClient(config.webhookUrl, config.webhookToken);
   }, [config.webhookUrl, config.webhookToken]);
 
-  // Load chat history from localStorage
+  // Load chat history (Supabase or localStorage fallback)
   useEffect(() => {
-    const savedConversations = localStorage.getItem('sitebuilder-conversations');
-    if (savedConversations) {
-      const parsedConversations = JSON.parse(savedConversations);
-      setConversations(parsedConversations);
-      
-      // Load the most recent conversation
-      if (parsedConversations.length > 0) {
-        const latest = parsedConversations[0];
-        setCurrentConversationId(latest.id);
-        setCurrentMessages(latest.messages);
+    loadConversations();
+  }, []);
+
+  const loadConversations = useCallback(async () => {
+    setIsLoading(true);
+    setSyncStatus('syncing');
+
+    try {
+      if (supabaseService.isEnabled()) {
+        // Load from Supabase
+        const dbConversations = await supabaseService.getConversations();
+        const conversations: Conversation[] = [];
+
+        for (const dbConv of dbConversations) {
+          const messages = await supabaseService.getMessages(dbConv.id);
+          conversations.push({
+            id: dbConv.id,
+            title: dbConv.title,
+            messages,
+            lastMessage: dbConv.last_message,
+            timestamp: dbConv.updated_at,
+          });
+        }
+
+        setConversations(conversations);
+        setSyncStatus('synced');
+
+        // Load the most recent conversation
+        if (conversations.length > 0) {
+          setCurrentConversationId(conversations[0].id);
+          setCurrentMessages(conversations[0].messages);
+        } else {
+          createNewConversation();
+        }
+      } else {
+        // Fallback to localStorage
+        const savedConversations = localStorage.getItem('sitebuilder-conversations');
+        if (savedConversations) {
+          const parsedConversations = JSON.parse(savedConversations);
+          setConversations(parsedConversations);
+          
+          if (parsedConversations.length > 0) {
+            const latest = parsedConversations[0];
+            setCurrentConversationId(latest.id);
+            setCurrentMessages(latest.messages);
+          }
+        } else {
+          createNewConversation();
+        }
+        setSyncStatus('offline');
       }
-    } else {
-      // Create first conversation
-      createNewConversation();
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      setSyncStatus('offline');
+      
+      // Fallback to localStorage
+      const savedConversations = localStorage.getItem('sitebuilder-conversations');
+      if (savedConversations) {
+        const parsedConversations = JSON.parse(savedConversations);
+        setConversations(parsedConversations);
+        
+        if (parsedConversations.length > 0) {
+          const latest = parsedConversations[0];
+          setCurrentConversationId(latest.id);
+          setCurrentMessages(latest.messages);
+        }
+      } else {
+        createNewConversation();
+      }
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  // Save conversations to localStorage
-  const saveConversations = useCallback((convs: Conversation[]) => {
+  // Save to localStorage (fallback)
+  const saveToLocalStorage = useCallback((convs: Conversation[]) => {
     localStorage.setItem('sitebuilder-conversations', JSON.stringify(convs));
   }, []);
 
@@ -75,107 +135,193 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({ config }) => {
     scrollToBottom();
   }, [currentMessages, isTyping, scrollToBottom]);
 
-  const createNewConversation = useCallback(() => {
+  const createNewConversation = useCallback(async () => {
+    const welcomeMessage: ChatMessage = {
+      id: uuidv4(),
+      content: `Hello! I'm SiteBuilder, your AI assistant. How can I help you build your website today?`,
+      timestamp: new Date().toISOString(),
+      isUser: false,
+      isMarkdown: false,
+    };
+
     const newConversation: Conversation = {
       id: uuidv4(),
       title: 'New Chat',
-      messages: [{
-        id: uuidv4(),
-        content: `Hello! I'm SiteBuilder, your AI assistant. How can I help you build your website today?`,
-        timestamp: new Date().toISOString(),
-        isUser: false,
-        isMarkdown: false,
-      }],
+      messages: [welcomeMessage],
       lastMessage: 'Hello! I\'m SiteBuilder...',
       timestamp: new Date().toISOString(),
     };
 
-    setConversations(prev => {
-      const updated = [newConversation, ...prev];
-      saveConversations(updated);
-      return updated;
-    });
-    
-    setCurrentConversationId(newConversation.id);
-    setCurrentMessages(newConversation.messages);
-    setFollowUps([]);
-    setError(null);
-  }, [saveConversations]);
-
-  const updateCurrentConversation = useCallback((messages: ChatMessage[]) => {
-    if (!currentConversationId) return;
-
-    setConversations(prev => {
-      const updated = prev.map(conv => {
-        if (conv.id === currentConversationId) {
-          const lastMessage = messages[messages.length - 1];
-          return {
-            ...conv,
-            messages,
-            lastMessage: lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : ''),
-            timestamp: lastMessage.timestamp,
-            title: conv.title === 'New Chat' ? messages.find(m => m.isUser)?.content.substring(0, 30) + '...' || 'New Chat' : conv.title,
-          };
+    try {
+      if (supabaseService.isEnabled()) {
+        // Save to Supabase
+        const conversationId = await supabaseService.createConversation(
+          newConversation.title,
+          newConversation.lastMessage
+        );
+        
+        if (conversationId) {
+          newConversation.id = conversationId;
+          await supabaseService.addMessage(conversationId, {
+            content: welcomeMessage.content,
+            timestamp: welcomeMessage.timestamp,
+            isUser: false,
+            isMarkdown: false,
+          });
+          setSyncStatus('synced');
         }
-        return conv;
-      });
-      saveConversations(updated);
-      return updated;
-    });
-  }, [currentConversationId, saveConversations]);
+      }
 
-  const switchConversation = useCallback((conversationId: string) => {
-    const conversation = conversations.find(c => c.id === conversationId);
-    if (conversation) {
-      setCurrentConversationId(conversationId);
-      setCurrentMessages(conversation.messages);
+      setConversations(prev => {
+        const updated = [newConversation, ...prev];
+        saveToLocalStorage(updated);
+        return updated;
+      });
+      
+      setCurrentConversationId(newConversation.id);
+      setCurrentMessages(newConversation.messages);
       setFollowUps([]);
       setError(null);
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      setSyncStatus('offline');
     }
-  }, [conversations]);
+  }, [saveToLocalStorage]);
 
-  const deleteConversation = useCallback((conversationId: string) => {
-    setConversations(prev => {
-      const filtered = prev.filter(c => c.id !== conversationId);
-      saveConversations(filtered);
-      
-      // If deleting current conversation, switch to another or create new
-      if (conversationId === currentConversationId) {
-        if (filtered.length > 0) {
-          setCurrentConversationId(filtered[0].id);
-          setCurrentMessages(filtered[0].messages);
-        } else {
-          createNewConversation();
+  const updateConversation = useCallback(async (conversationId: string, messages: ChatMessage[]) => {
+    if (messages.length === 0) return;
+
+    const lastMessage = messages[messages.length - 1];
+    const title = messages.find(m => m.isUser)?.content.substring(0, 30) + '...' || 'New Chat';
+
+    try {
+      if (supabaseService.isEnabled()) {
+        // Update in Supabase
+        await supabaseService.updateConversation(
+          conversationId,
+          title,
+          lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : '')
+        );
+        setSyncStatus('synced');
+      }
+
+      setConversations(prev => {
+        const updated = prev.map(conv => {
+          if (conv.id === conversationId) {
+            return {
+              ...conv,
+              messages,
+              lastMessage: lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : ''),
+              timestamp: lastMessage.timestamp,
+              title: conv.title === 'New Chat' ? title : conv.title,
+            };
+          }
+          return conv;
+        });
+        saveToLocalStorage(updated);
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error updating conversation:', error);
+      setSyncStatus('offline');
+    }
+  }, [saveToLocalStorage]);
+
+  const switchConversation = useCallback(async (conversationId: string) => {
+    try {
+      if (supabaseService.isEnabled()) {
+        // Load messages from Supabase
+        const messages = await supabaseService.getMessages(conversationId);
+        setCurrentMessages(messages);
+      } else {
+        // Load from local state
+        const conversation = conversations.find(c => c.id === conversationId);
+        if (conversation) {
+          setCurrentMessages(conversation.messages);
         }
       }
       
-      return filtered;
-    });
-  }, [currentConversationId, saveConversations, createNewConversation]);
+      setCurrentConversationId(conversationId);
+      setFollowUps([]);
+      setError(null);
+    } catch (error) {
+      console.error('Error switching conversation:', error);
+      // Fallback to local state
+      const conversation = conversations.find(c => c.id === conversationId);
+      if (conversation) {
+        setCurrentConversationId(conversationId);
+        setCurrentMessages(conversation.messages);
+        setFollowUps([]);
+        setError(null);
+      }
+    }
+  }, [conversations]);
 
-  const addMessage = useCallback((message: Omit<ChatMessage, 'id'>) => {
+  const deleteConversation = useCallback(async (conversationId: string) => {
+    try {
+      if (supabaseService.isEnabled()) {
+        await supabaseService.deleteConversation(conversationId);
+        setSyncStatus('synced');
+      }
+
+      setConversations(prev => {
+        const filtered = prev.filter(c => c.id !== conversationId);
+        saveToLocalStorage(filtered);
+        
+        // If deleting current conversation, switch to another or create new
+        if (conversationId === currentConversationId) {
+          if (filtered.length > 0) {
+            setCurrentConversationId(filtered[0].id);
+            setCurrentMessages(filtered[0].messages);
+          } else {
+            createNewConversation();
+          }
+        }
+        
+        return filtered;
+      });
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      setSyncStatus('offline');
+    }
+  }, [currentConversationId, saveToLocalStorage, createNewConversation]);
+
+  const addMessage = useCallback(async (message: Omit<ChatMessage, 'id'>) => {
     const newMessage: ChatMessage = {
       ...message,
       id: uuidv4(),
     };
     
-    setCurrentMessages(prev => {
-      const updated = [...prev, newMessage];
-      updateCurrentConversation(updated);
-      return updated;
-    });
-    
-    // Announce new bot messages for screen readers
-    if (!message.isUser) {
-      const announcement = document.createElement('div');
-      announcement.setAttribute('aria-live', 'polite');
-      announcement.setAttribute('aria-atomic', 'true');
-      announcement.className = 'sr-only';
-      announcement.textContent = `New message from SiteBuilder: ${message.content}`;
-      document.body.appendChild(announcement);
-      setTimeout(() => document.body.removeChild(announcement), 1000);
+    try {
+      if (supabaseService.isEnabled() && currentConversationId) {
+        // Save to Supabase
+        await supabaseService.addMessage(currentConversationId, message);
+        setSyncStatus('synced');
+      }
+
+      setCurrentMessages(prev => {
+        const updated = [...prev, newMessage];
+        if (currentConversationId) {
+          updateConversation(currentConversationId, updated);
+        }
+        return updated;
+      });
+      
+      // Announce new bot messages for screen readers
+      if (!message.isUser) {
+        const announcement = document.createElement('div');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.setAttribute('aria-atomic', 'true');
+        announcement.className = 'sr-only';
+        announcement.textContent = `New message from SiteBuilder: ${message.content}`;
+        document.body.appendChild(announcement);
+        setTimeout(() => document.body.removeChild(announcement), 1000);
+      }
+    } catch (error) {
+      console.error('Error adding message:', error);
+      setSyncStatus('offline');
     }
-  }, [updateCurrentConversation]);
+  }, [currentConversationId, updateConversation]);
 
   const sendMessage = useCallback(async (content: string) => {
     const now = Date.now();
@@ -255,6 +401,17 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({ config }) => {
     setError(null);
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-sitebuilder-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading your conversations...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
@@ -269,7 +426,13 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({ config }) => {
                 </div>
                 <div>
                   <h1 className="font-bold text-gray-900 dark:text-white">{config.title}</h1>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">AI Website Builder</p>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">AI Website Builder</p>
+                    <div className={`w-2 h-2 rounded-full ${
+                      syncStatus === 'synced' ? 'bg-green-500' : 
+                      syncStatus === 'syncing' ? 'bg-yellow-500' : 'bg-gray-400'
+                    }`} title={syncStatus === 'synced' ? 'Synced' : syncStatus === 'syncing' ? 'Syncing...' : 'Offline mode'}></div>
+                  </div>
                 </div>
               </div>
             )}
@@ -355,6 +518,9 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({ config }) => {
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Connected to n8n workflow • {sessionManager.getSessionId().substring(0, 8)}...
+                {supabaseService.isEnabled() && (
+                  <span className="ml-2">• Supabase enabled</span>
+                )}
               </p>
             </div>
             <div className="flex items-center space-x-2">
