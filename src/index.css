@@ -1,0 +1,115 @@
+/* Main CSS file for SiteBuilder Chat */
+/* Created: Tailwind imports, custom styles, and animations for chat interface */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for SiteBuilder Chat */
+@layer base {
+  html {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+@layer components {
+  .chat-container {
+    @apply fixed bottom-4 right-4 w-80 h-96 bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden z-50;
+  }
+
+  .chat-header {
+    @apply bg-sitebuilder-primary text-white px-4 py-3 flex items-center space-x-3;
+  }
+
+  .chat-messages {
+    @apply flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50;
+  }
+
+  .message-bubble {
+    @apply max-w-xs rounded-xl px-3 py-2 animate-slide-up;
+  }
+
+  .message-user {
+    @apply ml-auto bg-sitebuilder-user-bubble text-white;
+  }
+
+  .message-bot {
+    @apply mr-auto bg-sitebuilder-bot-bubble text-sitebuilder-bot-text;
+  }
+
+  .chat-input-container {
+    @apply p-4 bg-white border-t border-gray-200;
+  }
+
+  .chat-input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sitebuilder-primary focus:border-transparent resize-none;
+  }
+
+  .quick-reply-button {
+    @apply inline-block px-3 py-1 m-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full cursor-pointer transition-colors;
+  }
+
+  .typing-indicator {
+    @apply flex space-x-1 items-center;
+  }
+
+  .typing-dot {
+    @apply w-2 h-2 bg-gray-400 rounded-full animate-bounce;
+  }
+
+  .error-toast {
+    @apply fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .chat-container {
+    @apply bg-gray-800 border-gray-700;
+  }
+
+  .chat-messages {
+    @apply bg-gray-900;
+  }
+
+  .message-bot {
+    @apply bg-gray-700 text-gray-100;
+  }
+
+  .chat-input-container {
+    @apply bg-gray-800 border-gray-700;
+  }
+
+  .chat-input {
+    @apply bg-gray-700 border-gray-600 text-white placeholder-gray-400;
+  }
+
+  .quick-reply-button {
+    @apply bg-gray-600 hover:bg-gray-500 text-gray-200;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .chat-container {
+    @apply fixed inset-4 w-auto h-auto max-h-full;
+  }
+}
+
+/* Custom scrollbar */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+} 
